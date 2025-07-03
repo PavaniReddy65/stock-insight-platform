@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-xl font-bold mb-4">Dashboard</h2>
+
+<!-- Prediction Form -->
+<form id="predict-form" class="mb-6">
+  <input type="text" name="ticker" id="ticker" placeholder="Enter ticker (e.g. TSLA)" class="border p-2" required />
+  <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded ml-2">Predict</button>
+</form>
+
+<!-- Prediction Result -->
+<div id="result" class="mb-6 whitespace-pre-wrap text-sm bg-gray-100 p-4 rounded"></div>
+
+<!-- Past Predictions Table -->
+<h3 class="text-lg font-semibold mb-2">Previous Predictions</h3>
+<table class="w-full text-left border-collapse bg-white shadow-md">
+  <thead class="bg-gray-200">
+    <tr>
+      <th class="p-2 border">Ticker</th>
+      <th class="p-2 border">Predicted Price</th>
+      <th class="p-2 border">MSE</th>
+      <th class="p-2 border">RMSE</th>
+      <th class="p-2 border">R²</th>
+      <th class="p-2 border">Charts</th>
+      <th class="p-2 border">Timestamp</th>
+    </tr>
+  </thead>
+  <tbody id="predictions-table-body">
+    <!-- JavaScript will fill this -->
+  </tbody>
+</table>
+
+<script>
+async function loadPredictions() {
+  const res = await fetch('/api/v1/predictions/', {
+    headers: {
+      'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+    }
+  });
+  if (!res.ok) return;
+
+  const data = await res.json();
+  const tbody = document.getElementById('predictions-table-body');
+  tbody.innerHTML = '';
+
+  data.forEach(item => {
+    tbody.innerHTML += `
+      <tr>
+        <td class="border p-2">${item.ticker}</td>
+        <td class="border p-2">₹${item.predicted_price}</td>
+        <td class="border p-2">${item.mse.toFixed(4)}</td>
+        <td class="border p-2">${item.rmse.toFixed(4)}</td>
+        <td class="border p-2">${item.r2.toFixed(4)}</td>
+        <td class="border p-2">
+          <img src="/${item.plot_url_1}" alt="Chart 1" width="80" />
+          <img src="/${item.plot_url_2}" alt="Chart 2" width="80" />
+        </td>
+        <td class="border p-2">${new Date(item.created_at).toLocaleString()}</td>
+      </tr>
+    `;
+  });
+}
+
+// Predict form submission
+document.getElementById('predict-form').onsubmit = async function (e) {
+  e.preventDefault();
+  const ticker = document.getElementById('ticker').value;
+  const response = await fetch('/api/v1/predict/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+    },
+    body: JSON.stringify({ ticker })
+  });
+
+  const resultDiv = document.getElementById('result');
+  if (response.ok) {
+    const data = await response.json();
+    resultDiv.innerHTML = `
+      <strong>Next Day Price:</strong> ₹${data.next_day_price}<br>
+      <strong>MSE:</strong> ${data.mse}<br>
+      <strong>RMSE:</strong> ${data.rmse}<br>
+      <strong>R2 Score:</strong> ${data.r2}<br>
+      <img src="/${data.plot_urls[0]}" class="mt-2 max-w-md" />
+      <img src="/${data.plot_urls[1]}" class="mt-2 max-w-md" />
+    `;
+    loadPredictions(); // Reload table
+  } else {
+    const error = await response.json();
+    resultDiv.innerText = `Error: ${error.detail || 'Prediction failed.'}`;
+  }
+}
+
+// Load predictions on page load
+loadPredictions();
+</script>
+{% endblock %}

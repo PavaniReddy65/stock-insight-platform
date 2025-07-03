@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<!-- 🔓 Logout Button -->
+<button id="logout-btn" class="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded z-10 hover:bg-red-600 transition">
+  Logout
+</button>
+
+<div class="max-w-4xl mx-auto mt-10 space-y-6">
+
+  <!-- Ticker Input -->
+  <form id="predict-form" class="flex space-x-4">
+    <input type="text" id="ticker" name="ticker" placeholder="Enter Ticker (e.g. TSLA)"
+           class="border border-gray-300 px-4 py-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-indigo-500">
+    <button type="submit"
+            class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700">Predict</button>
+  </form>
+
+  <!-- Prediction Result -->
+  <div id="result" class="text-center text-xl font-semibold text-green-600"></div>
+
+  <!-- Charts -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <img id="chart1" src="" alt="Price History Chart" class="rounded shadow">
+    <img id="chart2" src="" alt="Prediction vs Actual Chart" class="rounded shadow">
+  </div>
+
+  <!-- Prediction Table -->
+  <div class="overflow-x-auto mt-8">
+    <table class="min-w-full bg-white border border-gray-300">
+      <thead>
+        <tr>
+          <th class="px-4 py-2 border">Ticker</th>
+          <th class="px-4 py-2 border">Date</th>
+          <th class="px-4 py-2 border">Predicted Price</th>
+          <th class="px-4 py-2 border">MSE</th>
+        </tr>
+      </thead>
+      <tbody id="prediction-table">
+        <!-- Filled by AJAX -->
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- 🚀 Interactivity Scripts -->
+<script>
+  // 🔐 Protect dashboard if token missing
+  if (!localStorage.getItem("access")) {
+    alert("Session expired. Please log in.");
+    window.location.href = "/login/";
+  }
+
+  // 🔓 Logout logic
+  document.getElementById("logout-btn").addEventListener("click", () => {
+    localStorage.clear();
+    window.location.href = "/login/";
+  });
+
+  // 📈 Handle prediction submission
+  document.getElementById("predict-form").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const ticker = document.getElementById("ticker").value.trim();
+    const token = localStorage.getItem("access");
+
+    if (!ticker) return alert("Please enter a ticker.");
+
+    const res = await fetch("/api/v1/predict/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ ticker })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById("result").innerText = `Next-Day Price: ₹${data.next_day_price.toFixed(2)}`;
+      document.getElementById("chart1").src = data.plot_urls[0];
+      document.getElementById("chart2").src = data.plot_urls[1];
+      loadPredictionHistory();
+    } else {
+      alert(data.error || "Prediction failed.");
+    }
+  });
+
+  // 🧾 Load prediction history
+  async function loadPredictionHistory() {
+    const token = localStorage.getItem("access");
+    const res = await fetch("/api/v1/predictions/", {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      const table = document.getElementById("prediction-table");
+      table.innerHTML = "";
+
+      data.forEach(item => {
+        const row = `<tr>
+          <td class="border px-4 py-2">${item.ticker}</td>
+          <td class="border px-4 py-2">${item.created_at.split('T')[0]}</td>
+          <td class="border px-4 py-2">₹${item.next_day_price.toFixed(2)}</td>
+          <td class="border px-4 py-2">${item.mse.toFixed(4)}</td>
+        </tr>`;
+        table.insertAdjacentHTML("beforeend", row);
+      });
+    }
+  }
+
+  // 📦 Initial load
+  loadPredictionHistory();
+</script>
+{% endblock %}
