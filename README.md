@@ -176,13 +176,17 @@ stripe listen --forward-to http://localhost:8000/api/v1/webhooks/stripe/
 ![Stripe Enabled](https://img.shields.io/badge/payments-Stripe-brightgreen.svg)
 
 
-🖼️ Screenshots
 
-## 🏠 Homepage Screenshot
+## 🖼️ Screenshots
+
+### 🏠 Homepage
 ![Homepage](screenshots/homepage.png)
 
-## 📊 Dashboard Screenshot
+### 📊 Dashboard
 ![Dashboard](screenshots/dashboard.png)
+
+### 💳 Stripe Checkout
+![Stripe Checkout](screenshots/stripe_checkout.png)
 
 
 
